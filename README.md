@@ -68,18 +68,15 @@ Ask: `How many dogs can I own?` or `Cases for delict in a slip and trip scenario
 
 ### Running the agent with a Python script
 
-This is a more programmatic way to run the agent, using a simple Python script. The script now
+You can also run the agent directly using the provided `agent.py` script. It
 requires a single argument to choose which knowledge base agent to run:
 
 ```bash
 python agent.py legislation
+python agent.py judgment
 ```
 
 Choose `legislation` for the Cape Town legislation RAG flow, or `judgment` to query the judgments
-knowledge base instead:
-
-```bash
-python agent.py judgment
-```
+knowledge base.
 
 Ask: `How many dogs can I own?` or `Cases for delict in a slip and trip scenario`
