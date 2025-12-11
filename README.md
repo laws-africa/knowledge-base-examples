@@ -58,16 +58,28 @@ This is a simple visual way to run the agent, using the LangGraph CLI and LangGr
 langgraph dev --no-browser
 ```
 
-Then open your browser and go to https://agentchat.vercel.app/?apiUrl=http://localhost:2024&assistantId=agent - that will present you with a chat interface where you can interact with the agent.
+Open your browser and go to https://agentchat.vercel.app/?apiUrl=http://localhost:2024
 
-Ask: `How many dogs can I own?`
+Type in `legislation_agent` or `judgment_agent` to choose the respective agent and click Continue.
+
+That will present you with a chat interface where you can interact with the agent.
+
+Ask: `How many dogs can I own?` or `Cases for delict in a slip and trip scenario`
 
 ### Running the agent with a Python script
 
-This is a more programmatic way to run the agent, using a simple Python script.
+This is a more programmatic way to run the agent, using a simple Python script. The script now
+requires a single argument to choose which knowledge base agent to run:
 
 ```bash
-python agent.py
+python agent.py legislation
 ```
 
-Ask: `How many dogs can I own?`
+Choose `legislation` for the Cape Town legislation RAG flow, or `judgment` to query the judgments
+knowledge base instead:
+
+```bash
+python agent.py judgment
+```
+
+Ask: `How many dogs can I own?` or `Cases for delict in a slip and trip scenario`

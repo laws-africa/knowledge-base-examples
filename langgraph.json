@@ -2,7 +2,8 @@
   "$schema": "https://langgra.ph/schema.json",
   "dependencies": ["."],
   "graphs": {
-    "agent": "./kb_agent/graph.py:graph"
+    "legislation_agent": "./kb_agent/graph.py:legislation_graph",
+    "judgment_agent": "./kb_agent/graph.py:judgment_graph"
   },
   "env": ".env"
 }

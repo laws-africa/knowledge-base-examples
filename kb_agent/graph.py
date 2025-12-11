@@ -9,8 +9,9 @@ from pydantic import BaseModel
 
 # Change this to use your desired model
 MODEL = "openai/gpt-5-mini"
-KB_NAME = "legislation-za-municipal"
-LAWSAFRICA_KB_URL = f"https://api.laws.africa/ai/v1/knowledge-bases/{KB_NAME}/retrieve"
+LEGISLATION_KB_NAME = "legislation-za-municipal"
+JUDGMENTS_KB_NAME = "judgments-za"
+LAWSAFRICA_API_URL = "https://api.laws.africa/ai/v1/knowledge-bases"
 
 
 class State(MessagesState):
@@ -58,12 +59,19 @@ or special search syntax.
     }
 
 
-async def rag(state: State):
+async def legislation_rag(state: State):
     """Load relevant document portions based on the search query."""
     if not state.get('document_portions'):
         documents = await get_legislation_portions(state['search_query'])
         return {"document_portions": documents}
+    return {}
 
+
+async def judgment_rag(state: State):
+    """Load relevant document portions based on the search query."""
+    if not state.get('document_portions'):
+        documents = await get_judgments(state['search_query'])
+        return {"document_portions": documents}
     return {}
 
 
@@ -71,14 +79,13 @@ async def answer(state: State):
     """Answer the user's legal research question based on the retrieved document portions."""
     prompt = """You are a legal research assistant who helps users find relevant legal information based on their
 queries. Only reply with information provided here, not from your background knowledge.
-
-You are answering questions specifically about Cape Town, South Africa.
 """
 
     document_context = """Use the following legal document portions as context to answer the user's question.
 When answering, refer to the document's title and section numbers where relevant.""" + "\n\n" + "\n\n".join(state['document_portions'])
 
     llm = load_chat_model(MODEL)
+    print("Answering query...")
     response = await llm.ainvoke([
         {"role": "system", "content": prompt},
         {"role": "user", "content": document_context},
@@ -97,9 +104,10 @@ async def get_legislation_portions(query: str) -> list[str]:
     }
 
     async with httpx.AsyncClient() as client:
-        print("Querying Laws.Africa Knowledge Base...")
+        url = f"{LAWSAFRICA_API_URL}/{LEGISLATION_KB_NAME}/retrieve"
+        print(f"Querying Laws.Africa Knowledge Base {url} ...")
         resp = await client.post(
-            LAWSAFRICA_KB_URL,
+            url,
             headers=headers,
             json={
                 "text": query,
@@ -153,15 +161,73 @@ async def get_legislation_portions(query: str) -> list[str]:
     return documents
 
 
-# Define a new graph
+async def get_judgments(query: str) -> list[str]:
+    """Helper function to get judgment summaries from Laws.Africa Knowledge Base API, format them into per-document
+    strings and return a list of them."""
+    la_api_token = os.environ.get("LAWSAFRICA_API_TOKEN")
+    headers = {
+        "Authorization": f"Token {la_api_token}"
+    }
+
+    async with httpx.AsyncClient() as client:
+        url = f"{LAWSAFRICA_API_URL}/{JUDGMENTS_KB_NAME}/retrieve"
+        print(f"Querying Laws.Africa Knowledge Base {url} ...")
+        resp = await client.post(
+            url,
+            headers=headers,
+            json={
+                "text": query,
+                "top_k": "5",
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        print(f"Received {len(data['results'])} results from Laws.Africa Knowledge Base.")
+
+    documents = []
+    for item in data["results"]:
+        lines = [
+            f"# Document {len(documents) + 1}",
+            "",
+            "title: " + item["metadata"]["title"],
+            "date: " + item["metadata"]["expression_date"],
+            "public_url: " + item["metadata"]["public_url"],
+            "one-line summary: " + item["metadata"].get("blurb", "") or "",
+            "flynote: " + item["metadata"].get("flynote", "") or "",
+            "",
+            "<summary>",
+            item["content"]["text"],
+            "</summary>",
+        ]
+        documents.append("\n".join(lines))
+
+    return documents
+
+
+# Define the legislation graph
 builder = StateGraph(State)
 
 builder.add_node("search_query", search_query)
-builder.add_node("rag", rag)
+builder.add_node("rag", legislation_rag)
 builder.add_node("answer", answer)
 builder.add_edge("__start__", "search_query")
 builder.add_edge("search_query", "rag")
 builder.add_edge("rag", "answer")
 
 # Compile the builder into an executable graph
-graph = builder.compile(name="KB Agent")
+legislation_graph = builder.compile(name="Legislation KB Agent")
+
+
+# Define the judgment graph
+builder = StateGraph(State)
+
+builder.add_node("search_query", search_query)
+builder.add_node("rag", judgment_rag)
+builder.add_node("answer", answer)
+builder.add_edge("__start__", "search_query")
+builder.add_edge("search_query", "rag")
+builder.add_edge("rag", "answer")
+
+# Compile the builder into an executable graph
+judgment_graph = builder.compile(name="Judgment KB Agent")
