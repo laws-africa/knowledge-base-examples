@@ -142,3 +142,6 @@ staticfiles
 
 vendors-node_modules*
 
+
+# forecast agent monitor state
+monitor_state.json

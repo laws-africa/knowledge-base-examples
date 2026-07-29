@@ -1,15 +1,30 @@
 # Laws.Africa Knowledge Base Examples
 
-This repo contains an example of using the Laws.Africa [Knowledge Base API](https://developers.laws.africa/ai-api/knowledge-bases) in a simple RAG setup with LangGraph.
+This repo contains examples of using the Laws.Africa [Knowledge Base API](https://developers.laws.africa/ai-api/knowledge-bases) with LangGraph.
 
-The example restricts its queries to Cape Town using the place code `za-cpt`.
+| Agent | What it does |
+|---|---|
+| `legislation_agent` | RAG over Cape Town by-laws (place code `za-cpt`) |
+| `judgment_agent` | RAG over the South African judgments knowledge base |
+| `forecast_agent` | Answers "what is the law here, and what is about to change?" |
 
-## What it does
+## What the RAG examples do
 
-1. Takes a user **query** as input
-2. Uses an LLM to come up with a search query for the Knowledge Base, based on the user's query.
-3. Searches the Knowledge Base using the generated search query to retrieve relevant documents.
-4. Answers the user's query using the retrieved documents as context.
+1. Take a user **query** as input
+2. Use an LLM to come up with a search query for the Knowledge Base, based on the user's query.
+3. Search the Knowledge Base using the generated search query to retrieve relevant documents.
+4. Answer the user's query using the retrieved documents as context.
+
+## What the forecast example does
+
+Rather than searching once, it runs three filtered retrievals over the same
+knowledge base — legislation in force, legislation passed but not yet
+commenced, and legislation recently repealed — and synthesizes them into a
+forecast for a legal area, with every source the model cites verified against
+what was retrieved. It also ships a `monitor` that re-runs the retrieval on a
+schedule and reports only what's new since the last run.
+
+**[TUTORIAL.md](TUTORIAL.md) walks through building it from scratch.**
 
 ## Requirements
 
@@ -45,7 +60,7 @@ The example restricts its queries to Cape Town using the place code `za-cpt`.
 
    ```bash
    export OPENAI_API_KEY='your-openai-api-key'
-   export LAWS_AFRICA_API_KEY='your-laws-africa-api-key'
+   export LAWSAFRICA_API_TOKEN='your-laws-africa-api-key'
    ```
 
 ## Running the agent
@@ -60,11 +75,12 @@ langgraph dev --no-browser
 
 Open your browser and go to https://agentchat.vercel.app/?apiUrl=http://localhost:2024
 
-Type in `legislation_agent` or `judgment_agent` to choose the respective agent and click Continue.
+Type in `legislation_agent`, `judgment_agent` or `forecast_agent` to choose the respective agent and click Continue.
 
 That will present you with a chat interface where you can interact with the agent.
 
-Ask: `How many dogs can I own?` or `Cases for delict in a slip and trip scenario`
+Ask: `How many dogs can I own?`, `Cases for delict in a slip and trip scenario`, or — for the forecast
+agent — `electricity generation licensing`
 
 ### Running the agent with a Python script
 
@@ -74,9 +90,33 @@ requires a single argument to choose which knowledge base agent to run:
 ```bash
 python agent.py legislation
 python agent.py judgment
+python agent.py forecast
 ```
 
-Choose `legislation` for the Cape Town legislation RAG flow, or `judgment` to query the judgments
-knowledge base.
+Choose `legislation` for the Cape Town legislation RAG flow, `judgment` to query the judgments
+knowledge base, or `forecast` for the legislation forecast.
 
-Ask: `How many dogs can I own?` or `Cases for delict in a slip and trip scenario`
+Ask: `How many dogs can I own?`, `Cases for delict in a slip and trip scenario`, or — for the forecast
+agent — `electricity generation licensing`
+
+## Watching a legal area for changes
+
+The forecast agent's retrieval can be run on a schedule, reporting only works
+that are new since the last run:
+
+```bash
+python -m forecast_agent.monitor --area "electricity generation licensing"
+```
+
+State is kept in `monitor_state.json`. Pass `--notify you@example.com` (with
+`SMTP_HOST` set) to email the digest instead of just printing it.
+
+## Tests
+
+The forecast agent's tests fake both the Knowledge Base and the model, so they
+need no API keys and make no network calls:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
