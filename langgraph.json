@@ -3,7 +3,8 @@
   "dependencies": ["."],
   "graphs": {
     "legislation_agent": "./kb_agent/graph.py:legislation_graph",
-    "judgment_agent": "./kb_agent/graph.py:judgment_graph"
+    "judgment_agent": "./kb_agent/graph.py:judgment_graph",
+    "forecast_agent": "./forecast_agent/graph.py:forecast_graph"
   },
   "env": ".env"
 }
